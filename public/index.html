@@ -6,10 +6,13 @@
 <title>Recipe Matrix</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
-    --paper: #F5EFDC;
+    --paper: #FBF7ED;
     --paper-line: #C9D9C5;
+    --rule-blue: #AFC6DE;
+    --margin-red: #C1443B;
     --ink: #1F2A1F;
     --ink-soft: #5B6B57;
     --green: #2F6B4F;
@@ -19,17 +22,42 @@
     --card: #FFFDF6;
     --danger: #B23A2E;
     --radius: 6px;
+    --punch-rail: 46px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
+  html{ background: var(--paper); }
   body{
     background:
-      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, transparent calc(var(--punch-rail) + 17px), var(--margin-red) calc(var(--punch-rail) + 17px), var(--margin-red) calc(var(--punch-rail) + 19px), transparent calc(var(--punch-rail) + 19px)) 0 0 / 100% 100%,
+      linear-gradient(var(--rule-blue) 1px, transparent 1px) 0 6px / 100% 34px,
       var(--paper);
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     min-height:100vh;
     padding-bottom: 80px;
+    padding-left: var(--punch-rail);
+    position: relative;
   }
+  body::before{
+    content:"";
+    position: fixed; left:0; top:0; bottom:0; width: var(--punch-rail);
+    background-image:
+      radial-gradient(circle 6px at 23px 64px, rgba(0,0,0,0.14) 0, rgba(0,0,0,0.14) 6px, transparent 7px),
+      radial-gradient(circle 6px at 23px 62px, var(--paper) 0 6px, transparent 7px);
+    background-repeat: repeat-y;
+    background-size: 100% 120px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @media (max-width: 640px){
+    body{ padding-left: 0; }
+    body::before{ display:none; }
+    body{ background:
+      linear-gradient(var(--rule-blue) 1px, transparent 1px) 0 6px / 100% 34px,
+      var(--paper);
+    }
+  }
+  header, .shell, footer{ position: relative; z-index: 2; }
   header{
     padding: 26px clamp(16px,4vw,48px);
     display:flex; justify-content:space-between; align-items:center;
@@ -55,9 +83,10 @@
     background: var(--card);
     border: 1px solid var(--paper-line);
     border-radius: var(--radius);
-    box-shadow: 0 1px 0 var(--paper-line), 0 6px 20px -14px rgba(30,70,52,0.4);
+    box-shadow: 0 1px 0 var(--paper-line), 0 10px 26px -16px rgba(30,70,52,0.45);
     padding: clamp(18px,3vw,30px);
     margin-bottom: 30px;
+    transform: rotate(-0.3deg);
   }
   .input-tabs{ display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--paper-line); }
   .itab{
@@ -129,12 +158,13 @@
   .out-head{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
   .out-head h3{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.4rem; font-weight:700; }
   .out-actions{ display:flex; gap:10px; }
-  .out-actions button{
+  .out-actions button, .out-actions button#downloadBtn{
     font-family:'IBM Plex Mono', monospace; font-size:0.7rem; letter-spacing:0.03em;
     background:none; border:1px solid var(--paper-line); color:var(--ink-soft);
     padding:7px 12px; border-radius:4px; cursor:pointer;
   }
   .out-actions button:hover{ border-color: var(--green); color:var(--green-deep); }
+  .out-actions button:disabled{ opacity:0.6; cursor:not-allowed; }
 
   .matrix-scroll{ overflow-x:auto; border-radius: var(--radius); border: 1.5px solid var(--green); }
   table.matrix{
@@ -193,7 +223,7 @@
       <circle cx="10" cy="19" r="2.3" fill="#E3A62F"/>
     </svg>
     <div>
-      <h1>Recipe Simplifier</h1>
+      <h1>Recipe Matrix</h1>
       <p>Chart · not chat</p>
     </div>
   </div>
@@ -202,8 +232,8 @@
 <div class="shell">
 
   <div class="intro">
-    <h2>Turn any recipe into a simple-to-follow chart.</h2>
-    <p>Tired of endless backstories and walls of text before you can even see the recipe? Just upload a photo of a recipe or paste the text. It then gets converted into the ingredient-flow matrix: the format that shows exactly what combines with what and when, instead of the irrelevant stuff.</p>
+    <h2>Turn any recipe into <em>the chart</em>.</h2>
+    <p>Upload a photo of a recipe, paste the text, or drop in a URL. It gets converted into the ingredient-flow matrix — the format that shows exactly what combines with what, and when, instead of a wall of prose.</p>
   </div>
 
   <div class="card">
@@ -245,6 +275,7 @@
       <h3 id="outTitle">—</h3>
       <div class="out-actions">
         <button id="copyBtn">Copy as text</button>
+        <button id="downloadBtn">Download as image</button>
       </div>
     </div>
     <div class="matrix-scroll">
@@ -458,6 +489,42 @@
       const orig = btn.textContent; btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = orig, 1400);
     });
+  });
+
+  // ---------- Download as image ----------
+  document.getElementById('downloadBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('downloadBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Rendering...';
+    btn.disabled = true;
+
+    // Build an isolated, cleanly-styled snapshot so the exported image
+    // looks good regardless of the page's own background.
+    const snapshot = document.createElement('div');
+    snapshot.style.cssText = 'position:fixed; left:-9999px; top:0; background:#FFFDF6; padding:28px; display:inline-block; font-family:Inter,sans-serif;';
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = outTitle.textContent;
+    titleEl.style.cssText = "font-family:'Bricolage Grotesque',sans-serif; font-size:1.4rem; font-weight:700; color:#1F2A1F; margin-bottom:14px;";
+    const tableClone = matrixTable.cloneNode(true);
+    tableClone.style.cssText = 'border-collapse:collapse;';
+    snapshot.appendChild(titleEl);
+    snapshot.appendChild(tableClone);
+    document.body.appendChild(snapshot);
+
+    try {
+      const canvas = await html2canvas(snapshot, { backgroundColor: '#FFFDF6', scale: 2 });
+      const link = document.createElement('a');
+      const slug = (outTitle.textContent || 'recipe-matrix').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      link.download = (slug || 'recipe-matrix') + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      setStatus('Could not generate the image. Try again.', true);
+    } finally {
+      document.body.removeChild(snapshot);
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
   });
 
   // ---------- Demo preload (the brownie recipe) ----------
