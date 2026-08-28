@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F5EFDC;
+    --paper-line: #C9D9C5;
+    --ink: #1F2A1F;
+    --ink-soft: #5B6B57;
+    --green: #2F6B4F;
+    --green-deep: #1E4634;
+    --yolk: #E3A62F;
+    --yolk-deep: #B97F1B;
+    --card: #FFFDF6;
+    --danger: #B23A2E;
+    --radius: 6px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0 / 100% 34px,
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom: 80px;
+  }
+  header{
+    padding: 26px clamp(16px,4vw,48px);
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom: 2px solid var(--green);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand svg{ width:32px; height:32px; }
+  .brand h1{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.2rem; font-weight:700; letter-spacing:-0.01em; }
+  .brand p{ font-family:'IBM Plex Mono', monospace; font-size:0.66rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--green); margin-top:1px;}
+
+  .shell{ max-width: 1040px; margin: 0 auto; padding: clamp(24px,4vw,44px) clamp(16px,4vw,48px); }
+
+  .intro{ margin-bottom: 34px; }
+  .intro h2{
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-size: clamp(1.7rem, 3.6vw, 2.6rem); font-weight:700; line-height:1.12; letter-spacing:-0.01em;
+    max-width: 18ch;
+  }
+  .intro h2 em{ font-style:normal; color: var(--green); text-decoration: underline wavy var(--yolk); text-decoration-thickness: 2px; text-underline-offset: 5px;}
+  .intro p{ color: var(--ink-soft); margin-top:14px; max-width:56ch; font-size:0.98rem; line-height:1.6; }
+
+  /* input card */
+  .card{
+    background: var(--card);
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 0 var(--paper-line), 0 6px 20px -14px rgba(30,70,52,0.4);
+    padding: clamp(18px,3vw,30px);
+    margin-bottom: 30px;
+  }
+  .input-tabs{ display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--paper-line); }
+  .itab{
+    font-family:'IBM Plex Mono', monospace; font-size:0.76rem; letter-spacing:0.03em;
+    background:none; border:none; cursor:pointer; color: var(--ink-soft);
+    padding: 9px 4px; margin-right:16px; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+  }
+  .itab.active{ color: var(--green-deep); border-bottom-color: var(--yolk); font-weight:600; }
+  .ipanel{ display:none; }
+  .ipanel.active{ display:block; }
+
+  .dropzone{
+    border: 2px dashed var(--paper-line);
+    border-radius: var(--radius);
+    padding: 34px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    position:relative;
+  }
+  .dropzone.drag{ border-color: var(--green); background: rgba(47,107,79,0.05); }
+  .dropzone p{ font-size:0.9rem; color: var(--ink-soft); }
+  .dropzone .hint{ font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color: var(--ink-soft); margin-top:6px; }
+  .dropzone input{ display:none; }
+  #imgPreview{ max-width:100%; max-height:220px; border-radius:4px; margin-top:14px; display:none; }
+  .file-clear{ display:none; font-family:'IBM Plex Mono', monospace; font-size:0.7rem; color:var(--danger); background:none; border:none; cursor:pointer; margin-top:10px; text-decoration:underline; }
+
+  textarea{
+    width:100%; min-height:180px; resize:vertical;
+    background: var(--paper); border:1px solid var(--paper-line); border-radius:4px;
+    padding: 14px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; color: var(--ink);
+    outline:none; line-height:1.5;
+  }
+  textarea:focus{ border-color: var(--green); }
+
+  .url-row{ display:flex; gap:10px; }
+  .url-row input{
+    flex:1; background: var(--paper); border:1px solid var(--paper-line); border-radius:4px;
+    padding: 13px 14px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; color: var(--ink); outline:none;
+  }
+  .url-row input:focus{ border-color: var(--green); }
+  .url-note{ font-size:0.76rem; color: var(--ink-soft); margin-top:10px; line-height:1.5; }
+
+  .generate-row{ display:flex; align-items:center; gap:14px; margin-top:20px; flex-wrap:wrap; }
+  .btn{
+    font-family:'Bricolage Grotesque', sans-serif; font-weight:700; font-size:0.92rem;
+    background: var(--green); color: var(--paper);
+    border:none; padding: 13px 24px; border-radius: 4px; cursor:pointer;
+    transition: background .15s, transform .1s;
+    display:flex; align-items:center; gap:8px;
+  }
+  .btn:hover{ background: var(--green-deep); }
+  .btn:active{ transform: scale(0.98); }
+  .btn:disabled{ opacity:0.55; cursor:not-allowed; }
+  .btn.secondary{ background: transparent; color: var(--green-deep); border:1px solid var(--green); }
+  .btn.secondary:hover{ background: rgba(47,107,79,0.06); }
+  .status{ font-family:'IBM Plex Mono', monospace; font-size:0.76rem; color: var(--ink-soft); }
+  .status.err{ color: var(--danger); }
+
+  .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border: 2px solid rgba(245,239,220,0.4); border-top-color: var(--paper);
+    animation: spin .7s linear infinite; display:none;
+  }
+  .btn.loading .spinner{ display:inline-block; }
+  .btn.loading .btn-text{ opacity:0.75; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* output */
+  .output-wrap{ display:none; }
+  .output-wrap.active{ display:block; }
+  .out-head{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+  .out-head h3{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.4rem; font-weight:700; }
+  .out-actions{ display:flex; gap:10px; }
+  .out-actions button{
+    font-family:'IBM Plex Mono', monospace; font-size:0.7rem; letter-spacing:0.03em;
+    background:none; border:1px solid var(--paper-line); color:var(--ink-soft);
+    padding:7px 12px; border-radius:4px; cursor:pointer;
+  }
+  .out-actions button:hover{ border-color: var(--green); color:var(--green-deep); }
+
+  .matrix-scroll{ overflow-x:auto; border-radius: var(--radius); border: 1.5px solid var(--green); }
+  table.matrix{
+    border-collapse: collapse;
+    width:100%;
+    min-width: 560px;
+    background: var(--card);
+  }
+  table.matrix td{
+    border: 1.5px solid var(--green);
+    padding: 10px 14px;
+    font-size: 0.86rem;
+    vertical-align: middle;
+    line-height:1.4;
+  }
+  table.matrix td.prep-row{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    background: rgba(47,107,79,0.07);
+    color: var(--green-deep);
+    letter-spacing:0.02em;
+  }
+  table.matrix td.ing-name{
+    font-weight:500;
+    white-space: nowrap;
+  }
+  table.matrix td.op-cell{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    color: var(--green-deep);
+    background: rgba(227,166,47,0.10);
+    white-space: pre-line;
+  }
+  table.matrix td.op-cell.root-cell{
+    background: rgba(227,166,47,0.22);
+    color: var(--yolk-deep);
+  }
+  table.matrix td.empty-cell{ background: var(--card); }
+
+  footer{
+    max-width:1040px; margin:40px auto 0; padding: 0 clamp(16px,4vw,48px);
+    font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color: var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="32" height="32" rx="3" stroke="#2F6B4F" stroke-width="1.4"/>
+      <path d="M4 14 H36 M4 24 H36 M15 4 V36 M25 4 V14 M25 24 V36" stroke="#2F6B4F" stroke-width="1"/>
+      <circle cx="10" cy="19" r="2.3" fill="#E3A62F"/>
+    </svg>
+    <div>
+      <h1>Recipe Matrix</h1>
+      <p>Chart · not chat</p>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <div class="intro">
+    <h2>Turn any recipe into <em>the chart</em>.</h2>
+    <p>Upload a photo of a recipe, paste the text, or drop in a URL. It gets converted into the ingredient-flow matrix — the format that shows exactly what combines with what, and when, instead of a wall of prose.</p>
+  </div>
+
+  <div class="card">
+    <div class="input-tabs">
+      <button class="itab active" data-panel="img">Photo / Screenshot</button>
+      <button class="itab" data-panel="txt">Paste Text</button>
+      <button class="itab" data-panel="url">Paste URL</button>
+    </div>
+
+    <div class="ipanel active" id="panel-img">
+      <div class="dropzone" id="dropzone">
+        <p><strong>Drop an image here</strong>, or click to choose a file</p>
+        <p class="hint">JPG / PNG · a recipe card, cookbook page, or screenshot</p>
+        <input type="file" id="fileInput" accept="image/*">
+        <img id="imgPreview" alt="Uploaded recipe preview">
+      </div>
+      <button class="file-clear" id="fileClear">Remove image</button>
+    </div>
+
+    <div class="ipanel" id="panel-txt">
+      <textarea id="textInput" placeholder="Paste the full recipe here — title, ingredients with amounts, and the instructions..."></textarea>
+    </div>
+
+    <div class="ipanel" id="panel-url">
+      <div class="url-row">
+        <input type="url" id="urlInput" placeholder="https://example.com/best-brownies">
+      </div>
+      <p class="url-note">Many recipe sites block direct browser fetches. If the URL doesn't work, copy the recipe text and use the Paste Text tab instead.</p>
+    </div>
+
+    <div class="generate-row">
+      <button class="btn" id="genBtn"><span class="spinner"></span><span class="btn-text">Build the matrix</span></button>
+      <span class="status" id="statusMsg"></span>
+    </div>
+  </div>
+
+  <div class="output-wrap" id="outputWrap">
+    <div class="out-head">
+      <h3 id="outTitle">—</h3>
+      <div class="out-actions">
+        <button id="copyBtn">Copy as text</button>
+      </div>
+    </div>
+    <div class="matrix-scroll">
+      <table class="matrix" id="matrixTable"></table>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>Recipe Matrix · runs in your browser, images sent only to build your chart</span>
+  <span>v1.0</span>
+</footer>
+
+<script>
+  // ---------- Input tabs ----------
+  const itabs = document.querySelectorAll('.itab');
+  const ipanels = document.querySelectorAll('.ipanel');
+  itabs.forEach(t => t.addEventListener('click', () => {
+    itabs.forEach(x => x.classList.remove('active'));
+    ipanels.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.panel).classList.add('active');
+  }));
+
+  // ---------- Image upload ----------
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const imgPreview = document.getElementById('imgPreview');
+  const fileClear = document.getElementById('fileClear');
+  let uploadedImage = null; // {base64, mediaType}
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('drag');
+    if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+  fileClear.addEventListener('click', e => {
+    e.stopPropagation();
+    uploadedImage = null; imgPreview.style.display='none'; imgPreview.src='';
+    fileClear.style.display='none'; fileInput.value='';
+  });
+
+  function handleFile(file){
+    if(!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      uploadedImage = { base64: dataUrl.split(',')[1], mediaType: file.type };
+      imgPreview.src = dataUrl; imgPreview.style.display = 'block';
+      fileClear.style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Generate ----------
+  const genBtn = document.getElementById('genBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  const outputWrap = document.getElementById('outputWrap');
+  const outTitle = document.getElementById('outTitle');
+  const matrixTable = document.getElementById('matrixTable');
+
+  function setStatus(msg, isErr){
+    statusMsg.textContent = msg || '';
+    statusMsg.className = 'status' + (isErr ? ' err' : '');
+  }
+  function setLoading(on){
+    genBtn.disabled = on;
+    genBtn.classList.toggle('loading', on);
+  }
+
+  const SYSTEM_PROMPT = `You extract recipes and convert them into a structured "flow tree" JSON format used to render an ingredient-flow matrix chart (the kind where ingredients merge together step by step, e.g. "melt" -> "mix" -> "mix" -> "fold in" -> "bake").
+
+Return ONLY valid JSON, no markdown fences, no commentary, no explanation. Schema:
+
+{
+  "title": "Recipe name",
+  "prep_steps": ["Short setup instructions, e.g. 'Butter and flour an 8x8-in pan.'", "Preheat oven to 350F (170C)."],
+  "tree": <node>
+}
+
+A <node> is either:
+- a string: an ingredient with its amount, written exactly like "4 oz (115 g) unsalted butter"
+- an object: { "op": "short lowercase action label like 'mix', 'melt', 'whisk', 'fold in', 'combine', 'knead'", "children": [ <node>, <node>, ... ] }
+
+Rules:
+- children arrays list ingredients/sub-steps in the order they are used, top to bottom.
+- Build a nested merge tree: ingredients that combine together at the same step share a parent op node. That parent can then be merged further with other ingredients/groups at the NEXT step, becoming a child of a new op node — continue nesting until everything converges into ONE final root node.
+- The root node is always the final combining/cooking step (e.g. bake, cook, chill, assemble). Put temperature and time info in its "op" text using \\n for line breaks, e.g. "bake\\n350F (170C)\\n30 to 40 min".
+- Keep op labels short (1-3 words) except the root, which can include temp/time on separate lines.
+- If you cannot find a real recipe in the input, return exactly: {"error": "No recipe could be found in the provided input."}
+- Output nothing but the JSON object.`;
+
+  async function callClaude(userContent){
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userContent }]
+      })
+    });
+    if(!response.ok) throw new Error('API request failed (' + response.status + ')');
+    const data = await response.json();
+    const textBlock = (data.content || []).find(b => b.type === 'text');
+    if(!textBlock) throw new Error('No response text returned.');
+    let clean = textBlock.text.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+    let parsed;
+    try{ parsed = JSON.parse(clean); }
+    catch(e){ throw new Error('Could not parse a valid recipe from the response.'); }
+    return parsed;
+  }
+
+  async function tryFetchUrlText(url){
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('fetch failed');
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,noscript,svg').forEach(el => el.remove());
+    const text = doc.body ? doc.body.innerText : '';
+    if(!text || text.trim().length < 40) throw new Error('empty page text');
+    return text.slice(0, 15000);
+  }
+
+  genBtn.addEventListener('click', async () => {
+    const activeTab = document.querySelector('.itab.active').dataset.panel;
+    let userContent = null;
+
+    try{
+      if(activeTab === 'img'){
+        if(!uploadedImage){ setStatus('Upload an image first.', true); return; }
+        userContent = [
+          { type: 'image', source: { type: 'base64', media_type: uploadedImage.mediaType, data: uploadedImage.base64 } },
+          { type: 'text', text: 'Extract the recipe from this image and return the JSON flow-tree as instructed.' }
+        ];
+      } else if(activeTab === 'txt'){
+        const val = document.getElementById('textInput').value.trim();
+        if(!val){ setStatus('Paste a recipe first.', true); return; }
+        userContent = 'Extract the recipe from this text and return the JSON flow-tree as instructed:\n\n' + val;
+      } else if(activeTab === 'url'){
+        const url = document.getElementById('urlInput').value.trim();
+        if(!url){ setStatus('Paste a URL first.', true); return; }
+        setLoading(true); setStatus('Fetching the page...');
+        let pageText;
+        try{ pageText = await tryFetchUrlText(url); }
+        catch(e){
+          setLoading(false);
+          setStatus("Couldn't fetch that URL directly (many sites block this). Try the Paste Text tab instead.", true);
+          return;
+        }
+        userContent = 'Extract the recipe from this page content and return the JSON flow-tree as instructed:\n\n' + pageText;
+      }
+
+      setLoading(true); setStatus('Reading the recipe...');
+      const data = await callClaude(userContent);
+      setLoading(false);
+
+      if(data.error){ setStatus(data.error, true); return; }
+      setStatus('');
+      renderMatrix(data);
+    } catch(err){
+      setLoading(false);
+      setStatus(err.message || 'Something went wrong.', true);
+    }
+  });
+
+  // ---------- Matrix tree rendering ----------
+  function normalize(node){
+    if(typeof node === 'string') return { type:'leaf', label: node };
+    return { type:'op', op: node.op || '', children: (node.children||[]).map(normalize) };
+  }
+  function assignRows(node, state, order){
+    if(node.type === 'leaf'){
+      node.row = state.n; node.minRow = state.n; node.maxRow = state.n;
+      order.push(node.label);
+      state.n++;
+      return;
+    }
+    node.children.forEach(c => assignRows(c, state, order));
+    node.minRow = Math.min(...node.children.map(c => c.minRow));
+    node.maxRow = Math.max(...node.children.map(c => c.maxRow));
+  }
+  function computeHeight(node){
+    if(node.type === 'leaf'){ node.height = 0; return 0; }
+    let h = 0;
+    node.children.forEach(c => { h = Math.max(h, computeHeight(c)); });
+    node.height = h + 1;
+    return node.height;
+  }
+  function assignCols(node, parentHeight, maxH){
+    if(node.type === 'leaf') return;
+    node.col = node.height;
+    node.colSpan = (parentHeight != null) ? (parentHeight - node.height) : (maxH - node.height + 1);
+    if(node.colSpan < 1) node.colSpan = 1;
+    node.children.forEach(c => assignCols(c, node.height, maxH));
+  }
+  function collectOps(node, list){
+    if(node.type === 'op'){ list.push(node); node.children.forEach(c => collectOps(c, list)); }
+  }
+
+  function renderMatrix(data){
+    const root = normalize(data.tree);
+    const order = [];
+    assignRows(root, { n: 0 }, order);
+    const maxH = computeHeight(root);
+    assignCols(root, null, maxH);
+    const ops = [];
+    collectOps(root, ops);
+
+    const rowCount = order.length;
+    const covered = Array.from({length: rowCount}, () => Array(maxH + 1).fill(false));
+    const opStart = {};
+    ops.forEach(n => { opStart[n.minRow + '-' + n.col] = n; });
+
+    let html = '';
+    (data.prep_steps || []).forEach(step => {
+      html += `<tr><td class="prep-row" colspan="${maxH + 1}">${escapeHtml(step)}</td></tr>`;
+    });
+
+    for(let r = 0; r < rowCount; r++){
+      html += '<tr>';
+      html += `<td class="ing-name">${escapeHtml(order[r])}</td>`;
+      for(let c = 1; c <= maxH; c++){
+        if(covered[r][c]) continue;
+        const node = opStart[r + '-' + c];
+        if(node){
+          for(let rr = node.minRow; rr <= node.maxRow; rr++){
+            for(let cc = node.col; cc < node.col + node.colSpan; cc++){
+              if(covered[rr] && cc <= maxH) covered[rr][cc] = true;
+            }
+          }
+          const isRoot = node === root;
+          html += `<td class="op-cell${isRoot ? ' root-cell' : ''}" rowspan="${node.maxRow - node.minRow + 1}" colspan="${node.colSpan}">${escapeHtml(node.op)}</td>`;
+        } else {
+          covered[r][c] = true;
+          html += `<td class="empty-cell"></td>`;
+        }
+      }
+      html += '</tr>';
+    }
+
+    matrixTable.innerHTML = html;
+    outTitle.textContent = data.title || 'Recipe';
+    outputWrap.classList.add('active');
+    outputWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // ---------- Copy as text ----------
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const rows = Array.from(matrixTable.querySelectorAll('tr')).map(tr =>
+      Array.from(tr.children).map(td => td.textContent.trim().replace(/\s+/g,' ')).join(' | ')
+    ).join('\n');
+    navigator.clipboard.writeText(outTitle.textContent + '\n\n' + rows).then(() => {
+      const btn = document.getElementById('copyBtn');
+      const orig = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1400);
+    });
+  });
+
+  // ---------- Demo preload (the brownie recipe) ----------
+  renderMatrix({
+    title: "Espresso Brownies (demo)",
+    prep_steps: ["Butter and flour an 8x8-in pan", "Preheat oven to 350°F (170°C)"],
+    tree: {
+      op: "bake\n350°F (170°C)\n30 to 40 min",
+      children: [
+        {
+          op: "fold in",
+          children: [
+            {
+              op: "mix",
+              children: [
+                {
+                  op: "mix",
+                  children: [
+                    { op: "melt", children: ["4 oz (115 g) unsalted butter"] },
+                    "1 cup (200 g) sugar",
+                    "1/4 tsp (2.5 mL) vanilla extract",
+                    "1 shot (4 Tbs; 60 mL) fresh brewed espresso or very strong coffee"
+                  ]
+                },
+                "2 large (100 g) eggs"
+              ]
+            },
+            "1/2 cup (80 g) all-purpose flour",
+            "1/3 cup (80 g) Hershey's cocoa powder",
+            "1/4 tsp (1.3 g) baking soda",
+            "1/4 tsp (1.5 g) table salt"
+          ]
+        }
+      ]
+    }
+  });
+</script>
+
+</body>
+</html>
