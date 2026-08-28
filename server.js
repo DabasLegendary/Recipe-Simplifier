@@ -7,6 +7,7 @@ app.use(express.json({ limit: '15mb' })); // generous limit for base64 images
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_WORKSPACE_ID = process.env.ANTHROPIC_WORKSPACE_ID; // optional, only needed for identity-linked keys
 const ANTHROPIC_VERSION = '2023-06-01';
 const MODEL = 'claude-sonnet-4-6';
 
@@ -48,6 +49,28 @@ function stripHtmlToText(html) {
     .trim();
 }
 
+// Most recipe sites embed structured Schema.org "Recipe" data as JSON-LD so
+// Google/Pinterest can render rich recipe cards. It's meant to be machine-read,
+// so it's a far more reliable (and less scraping-adjacent) way to get recipe
+// content than parsing rendered HTML.
+function extractRecipeJsonLd(html) {
+  const blocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const block of blocks) {
+    try {
+      let json = JSON.parse(block[1].trim());
+      const candidates = Array.isArray(json) ? json : (json['@graph'] || [json]);
+      const recipe = candidates.find(item => {
+        const type = item['@type'];
+        return type === 'Recipe' || (Array.isArray(type) && type.includes('Recipe'));
+      });
+      if (recipe) return JSON.stringify(recipe).slice(0, 15000);
+    } catch (e) {
+      // not valid JSON in this block, skip it
+    }
+  }
+  return null;
+}
+
 app.post('/api/build-matrix', async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY. Set it in your environment and restart the server.' });
@@ -81,7 +104,8 @@ app.post('/api/build-matrix', async (req, res) => {
         });
         if (!pageRes.ok) throw new Error('status ' + pageRes.status);
         const html = await pageRes.text();
-        pageText = stripHtmlToText(html).slice(0, 15000);
+        const structured = extractRecipeJsonLd(html);
+        pageText = structured || stripHtmlToText(html).slice(0, 15000);
         if (pageText.length < 40) throw new Error('empty page');
       } catch (e) {
         return res.status(422).json({ error: "Couldn't fetch that URL (the site may be blocking automated requests). Try pasting the recipe text instead." });
@@ -91,13 +115,18 @@ app.post('/api/build-matrix', async (req, res) => {
       return res.status(400).json({ error: 'Invalid request type.' });
     }
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': ANTHROPIC_VERSION
+    };
+    if (ANTHROPIC_WORKSPACE_ID) {
+      headers['anthropic-workspace-id'] = ANTHROPIC_WORKSPACE_ID;
+    }
+
     const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': ANTHROPIC_VERSION
-      },
+      headers,
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 2000,
